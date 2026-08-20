@@ -51,7 +51,7 @@ El QR contiene exclusivamente metadatos públicos y la firma criptográfica del 
 }
 ```
 * **Sin Secretos**: Nunca se almacenan llaves privadas (`S...`) ni credenciales confidenciales en el QR o en el cliente.
-* **Verificación de Autenticidad**: En puerta, el validador verifica la firma Ed25519 contra la llave pública de CulturaGO, garantizando que el ticket no fue forjado.
+* **Verificación de Emisor Confiable (Trusted Issuer)**: El validador en puerta no confía en `authorityPublicKey` recibido dentro del QR; verifica explícitamente que coincida con la clave pública autorizada de CulturaGO (`getTrustedAuthorityPublicKey()`) antes de validar la firma criptográfica Ed25519.
 
 ### B. Máquina de Estados y Prevención de Reúso
 1. **Estado Inicial**: `VALID`.
@@ -69,7 +69,9 @@ Tras el check-in exitoso en puerta, se genera y envía una transacción real a *
 * **Source Account**: Cuenta de la Autoridad de CulturaGO (patrocina comisiones / fee sponsorship).
 * **Operation**: `Operation.manageData({ name: 'ATT_' + ticketId, value: 'OK:...' })`.
 * **Memo**: `Memo.text('CG:' + ticketId)`.
-* **Explorer Verification**: Enlace directo a `https://stellar.expert/explorer/testnet/tx/{txHash}`.
+* **Manejo de Estados de Red**:
+  * Si la transacción se confirma: Estado `CONFIRMED`, `txHash` público y enlace directo a `https://stellar.expert/explorer/testnet/tx/{txHash}`.
+  * Si Horizon está inaccesible o pendiente: Estado `STELLAR_UNAVAILABLE` o `ANCHOR_PENDING`. **No se generan hashes simulados ni enlaces rotos al explorer**; el acceso del asistente en puerta permanece válido.
 
 ---
 

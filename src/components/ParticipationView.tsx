@@ -9,6 +9,7 @@ import {
   Ticket,
   User,
   BookOpen,
+  Clock,
 } from 'lucide-react';
 
 interface ParticipationViewProps {
@@ -40,11 +41,12 @@ export const ParticipationView: React.FC<ParticipationViewProps> = ({
     );
   }
 
+  const isConfirmed = participation.stellarStatus === 'CONFIRMED' && !!participation.stellarTxHash;
+
   return (
     <div className="max-w-3xl mx-auto py-6 px-4">
       {/* Verification Card */}
       <div className="relative rounded-3xl overflow-hidden bg-gray-900 border border-emerald-500/30 shadow-2xl p-6 sm:p-10 mb-6">
-        {/* Glow backdrop */}
         <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
         <div className="absolute bottom-0 left-0 w-80 h-80 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
 
@@ -64,9 +66,19 @@ export const ParticipationView: React.FC<ParticipationViewProps> = ({
             </div>
           </div>
 
-          <span className="px-3.5 py-1.5 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            On-Chain Verificada
+          <span
+            className={`px-3.5 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 ${
+              isConfirmed
+                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+            }`}
+          >
+            <span
+              className={`w-2 h-2 rounded-full ${
+                isConfirmed ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'
+              }`}
+            ></span>
+            {isConfirmed ? 'On-Chain Verificada' : 'Acceso Autorizado'}
           </span>
         </div>
 
@@ -125,9 +137,15 @@ export const ParticipationView: React.FC<ParticipationViewProps> = ({
         <div className="relative z-10 p-5 rounded-2xl bg-black/70 border border-indigo-500/30 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <div className="w-2.5 h-2.5 rounded-full bg-blue-400 animate-pulse"></div>
+              <div
+                className={`w-2.5 h-2.5 rounded-full ${
+                  isConfirmed ? 'bg-blue-400 animate-pulse' : 'bg-amber-400'
+                }`}
+              ></div>
               <span className="text-xs font-bold text-indigo-200">
-                Prueba Inmutable en Stellar Testnet
+                {isConfirmed
+                  ? 'Prueba Inmutable en Stellar Testnet'
+                  : 'Estado del Registro en Stellar Testnet'}
               </span>
             </div>
             <span className="text-[10px] font-mono text-gray-400 bg-gray-900 px-2 py-0.5 rounded border border-gray-800">
@@ -135,28 +153,45 @@ export const ParticipationView: React.FC<ParticipationViewProps> = ({
             </span>
           </div>
 
-          <div>
-            <p className="text-[11px] text-gray-400 font-mono mb-1">Stellar Transaction Hash:</p>
-            <p className="text-xs font-mono text-emerald-300 break-all bg-gray-950 p-2.5 rounded-xl border border-gray-800">
-              {participation.stellarTxHash}
-            </p>
-          </div>
+          {isConfirmed && participation.stellarTxHash ? (
+            <>
+              <div>
+                <p className="text-[11px] text-gray-400 font-mono mb-1">Stellar Transaction Hash:</p>
+                <p className="text-xs font-mono text-emerald-300 break-all bg-gray-950 p-2.5 rounded-xl border border-gray-800">
+                  {participation.stellarTxHash}
+                </p>
+              </div>
 
-          <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3">
-            <p className="text-[11px] text-gray-400">
-              Prueba pública de asistencia criptográficamente anclada en el Ledger.
-            </p>
+              <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3">
+                <p className="text-[11px] text-gray-400">
+                  Prueba pública de asistencia criptográficamente anclada en el Ledger.
+                </p>
 
-            <a
-              href={participation.stellarExplorerUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="w-full sm:w-auto px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center justify-center gap-2 transition-all shrink-0"
-            >
-              <span>Ver en Stellar Explorer</span>
-              <ExternalLink className="w-3.5 h-3.5" />
-            </a>
-          </div>
+                {participation.stellarExplorerUrl && (
+                  <a
+                    href={participation.stellarExplorerUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="w-full sm:w-auto px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center justify-center gap-2 transition-all shrink-0"
+                  >
+                    <span>Ver en Stellar Explorer</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                )}
+              </div>
+            </>
+          ) : (
+            <div className="p-3 rounded-xl bg-amber-950/20 border border-amber-500/30 text-amber-200 text-xs flex items-start gap-2">
+              <Clock className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
+              <div>
+                <p className="font-semibold">Acceso validado en puerta</p>
+                <p className="text-[11px] text-gray-400 mt-0.5">
+                  El anclaje en Stellar Testnet está pendiente o el nodo Horizon no respondió a tiempo.
+                  No se genera ningún hash simulado; el acceso del asistente permanece válido.
+                </p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Cultural Passport Connection Note */}
@@ -166,9 +201,9 @@ export const ParticipationView: React.FC<ParticipationViewProps> = ({
             <span>Integración con el Pasaporte Cultural de CulturaGO</span>
           </div>
           <p className="text-gray-300 text-[11px] leading-relaxed">
-            Esta asistencia confirmada en Stellar es una credencial portable que se acumula en el
-            perfil cultural del usuario, desbloqueando accesos exclusivos a museos, preventas y
-            recompensas comunitarias sin depender de intermediarios centralizados.
+            Esta asistencia confirmada es una credencial portable que se acumula en el perfil
+            cultural del usuario, desbloqueando accesos exclusivos a museos, preventas y recompensas
+            comunitarias sin depender de intermediarios centralizados.
           </p>
         </div>
       </div>

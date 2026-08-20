@@ -9,6 +9,7 @@ import {
   AlertTriangle,
   ArrowRight,
   ShieldAlert,
+  Clock,
 } from 'lucide-react';
 
 interface CheckInScannerViewProps {
@@ -61,7 +62,9 @@ export const CheckInScannerView: React.FC<CheckInScannerViewProps> = ({
                 Punto de Acceso & Check-in
               </h2>
             </div>
-            <p className="text-xs text-gray-400">Validación criptográfica en puerta y registro Stellar</p>
+            <p className="text-xs text-gray-400">
+              Validación criptográfica contra emisor confiable y registro Stellar Testnet
+            </p>
           </div>
 
           <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-500/10 text-indigo-300 text-xs border border-indigo-500/20">
@@ -70,11 +73,10 @@ export const CheckInScannerView: React.FC<CheckInScannerViewProps> = ({
           </div>
         </div>
 
-        {/* Scanner HUD / Reticle Area */}
+        {/* Scanner HUD Area */}
         <div className="relative rounded-2xl bg-black/60 border border-gray-800 p-8 flex flex-col items-center justify-center text-center overflow-hidden mb-6">
           <div className="absolute inset-0 bg-gradient-to-b from-indigo-500/5 via-transparent to-purple-500/5 pointer-events-none"></div>
 
-          {/* Scanner Optical View */}
           <div className="relative w-48 h-48 border-2 border-dashed border-indigo-500/50 rounded-2xl flex flex-col items-center justify-center p-4 bg-gray-900/40">
             <div className="absolute top-2 left-2 w-4 h-4 border-t-2 border-l-2 border-indigo-400"></div>
             <div className="absolute top-2 right-2 w-4 h-4 border-t-2 border-r-2 border-indigo-400"></div>
@@ -183,7 +185,7 @@ export const CheckInScannerView: React.FC<CheckInScannerViewProps> = ({
                 {/* Proof and Action for Success */}
                 {result.statusCode === 'CHECK_IN_SUCCESSFUL' && result.ticket && (
                   <div className="pt-3 border-t border-emerald-500/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                    {result.stellarTxHash && (
+                    {result.stellarStatus === 'CONFIRMED' && result.stellarTxHash && result.stellarExplorerUrl ? (
                       <a
                         href={result.stellarExplorerUrl}
                         target="_blank"
@@ -193,6 +195,11 @@ export const CheckInScannerView: React.FC<CheckInScannerViewProps> = ({
                         <span>Stellar Tx: {result.stellarTxHash.slice(0, 16)}...</span>
                         <ExternalLink className="w-3.5 h-3.5" />
                       </a>
+                    ) : (
+                      <div className="flex items-center gap-1.5 text-xs text-amber-300 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20">
+                        <Clock className="w-3.5 h-3.5" />
+                        <span>Acceso validado en puerta (Stellar Testnet pendiente/no disponible)</span>
+                      </div>
                     )}
 
                     <button

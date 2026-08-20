@@ -1,5 +1,7 @@
 export type TicketStatus = 'VALID' | 'USED' | 'INVALID';
 
+export type StellarAnchorStatus = 'CONFIRMED' | 'ANCHOR_PENDING' | 'STELLAR_UNAVAILABLE';
+
 export interface CulturalEvent {
   id: string;
   title: string;
@@ -24,7 +26,7 @@ export interface SignedQRPayload {
   issuedAt: number;
   nonce: string;
   authorityPublicKey: string;
-  signature: string; // Ed25519 signature of payload
+  signature: string; // Ed25519 signature of canonical payload string
 }
 
 export interface CulturalTicket {
@@ -38,21 +40,25 @@ export interface CulturalTicket {
   usedAt?: number;
   signedPayload: SignedQRPayload;
   qrString: string;
+  stellarStatus?: StellarAnchorStatus;
   stellarTxHash?: string;
+  stellarExplorerUrl?: string;
 }
 
 export type CheckInStatusCode =
   | 'CHECK_IN_SUCCESSFUL'
   | 'TICKET_ALREADY_USED'
+  | 'UNTRUSTED_ISSUER'
   | 'INVALID_SIGNATURE'
   | 'TICKET_NOT_FOUND'
   | 'PROCESSING';
 
 export interface CheckInResult {
-  success: boolean;
+  success: boolean; // Access granted at gate
   statusCode: CheckInStatusCode;
   message: string;
   ticket?: CulturalTicket;
+  stellarStatus: StellarAnchorStatus;
   stellarTxHash?: string;
   stellarExplorerUrl?: string;
   timestamp: number;
@@ -65,8 +71,9 @@ export interface ParticipationRecord {
   eventTitle: string;
   attendeeName: string;
   verifiedAt: number;
-  stellarTxHash: string;
-  stellarExplorerUrl: string;
+  stellarStatus: StellarAnchorStatus;
+  stellarTxHash?: string;
+  stellarExplorerUrl?: string;
   badgeName: string;
   badgePoints: number;
 }

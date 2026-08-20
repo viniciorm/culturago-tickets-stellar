@@ -9,7 +9,7 @@ import {
   signTicketPayload,
   verifyTicketSignature,
   anchorAttendanceToStellar,
-  getAuthorityPublicKey,
+  getTrustedAuthorityPublicKey,
 } from './stellar';
 
 export const DEFAULT_EVENT: CulturalEvent = {
@@ -43,13 +43,13 @@ export interface ITicketRepository {
 /**
  * InMemoryTicketRepository
  *
- * ARCHITECTURE NOTE FOR EVALUATORS & BUILDERS:
- * This lightweight in-memory storage layer manages ticket lifecycle state for the MVP Demo.
- * The interface `ITicketRepository` is designed to be seamlessly swapped with a
- * distributed backend database or a Soroban Smart Contract state machine in production.
+ * ARCHITECTURE & SECURITY NOTICE:
+ * This in-memory repository manages ticket state for this MVP demonstration.
+ * In a production multi-reader environment, single-use state must be enforced by
+ * a distributed transaction backend (e.g. PostgreSQL with row-level locks) or directly
+ * via a Soroban Smart Contract on Stellar to prevent race conditions across gates.
  *
- * (Client/session storage is NOT presented as production security; cryptographic
- * validation and Stellar Testnet anchoring provide the verifiable security layers).
+ * (Client/in-memory storage is an MVP demo abstraction, NOT a production anti-fraud system).
  */
 class InMemoryTicketRepository implements ITicketRepository {
   private tickets: Map<string, CulturalTicket> = new Map();
@@ -61,7 +61,6 @@ class InMemoryTicketRepository implements ITicketRepository {
   }
 
   private seedDefaultTicket() {
-    // Generate an initial demo ticket ready to test
     const issuedAt = Date.now() - 3600000;
     const ticketId = 'CG-SBN-8841';
     const signedPayload = signTicketPayload({
@@ -95,7 +94,6 @@ class InMemoryTicketRepository implements ITicketRepository {
     const ticketId = `CG-SBN-${randomSuffix}`;
     const issuedAt = Date.now();
 
-    // 1. Sign ticket with CulturaGO Authority Ed25519 keypair
     const signedPayload = signTicketPayload({
       ticketId,
       eventId: this.event.id,
@@ -137,19 +135,22 @@ class InMemoryTicketRepository implements ITicketRepository {
       return {
         success: false,
         statusCode: 'INVALID_SIGNATURE',
-        message: 'Código QR no reconocido o corrupto.',
+        message: 'Código QR no reconocido o formato corrupto.',
+        stellarStatus: 'STELLAR_UNAVAILABLE',
         timestamp: Date.now(),
         verifiedBy: 'CulturaGO Gate Engine',
       };
     }
 
-    // 2. Cryptographic signature check (Ed25519)
+    // 2. Cryptographic signature check against TRUSTED CulturaGO authority
     const verification = verifyTicketSignature(payload);
     if (!verification.isValid) {
+      const isUntrusted = verification.reason?.includes('Emisor no confiable');
       return {
         success: false,
-        statusCode: 'INVALID_SIGNATURE',
-        message: `Firma digital inválida: ${verification.reason}`,
+        statusCode: isUntrusted ? 'UNTRUSTED_ISSUER' : 'INVALID_SIGNATURE',
+        message: `Firma digital rechazada: ${verification.reason}`,
+        stellarStatus: 'STELLAR_UNAVAILABLE',
         timestamp: Date.now(),
         verifiedBy: 'CulturaGO Gate Engine',
       };
@@ -161,13 +162,14 @@ class InMemoryTicketRepository implements ITicketRepository {
       return {
         success: false,
         statusCode: 'TICKET_NOT_FOUND',
-        message: `Ticket ${payload.ticketId} no registrado en el sistema.`,
+        message: `Ticket ${payload.ticketId} no encontrado en el registro local.`,
+        stellarStatus: 'STELLAR_UNAVAILABLE',
         timestamp: Date.now(),
         verifiedBy: 'CulturaGO Gate Engine',
       };
     }
 
-    // 4. Check for double usage (ANTI-FRAUD / SINGLE USE)
+    // 4. Single-Use Check (Anti-Fraud / Prevention of double use)
     if (ticket.status === 'USED') {
       return {
         success: false,
@@ -176,25 +178,30 @@ class InMemoryTicketRepository implements ITicketRepository {
           ticket.usedAt || Date.now()
         ).toLocaleTimeString()}. Acceso denegado.`,
         ticket,
+        stellarStatus: ticket.stellarStatus || 'CONFIRMED',
+        stellarTxHash: ticket.stellarTxHash,
+        stellarExplorerUrl: ticket.stellarExplorerUrl,
         timestamp: Date.now(),
         verifiedBy: 'CulturaGO Gate Engine',
       };
     }
 
-    // 5. Mark as USED atomically
+    // 5. Gate Access Granted: Mark as USED immediately to prevent double scan at door
     const usedAt = Date.now();
     ticket.status = 'USED';
     ticket.usedAt = usedAt;
 
     // 6. Anchor Proof of Attendance to Stellar Testnet
-    const stellarAnchor = await anchorAttendanceToStellar({
+    const anchorResult = await anchorAttendanceToStellar({
       ticketId: ticket.id,
       eventId: ticket.eventId,
       attendeeName: ticket.attendeeName,
       timestamp: usedAt,
     });
 
-    ticket.stellarTxHash = stellarAnchor.txHash;
+    ticket.stellarStatus = anchorResult.status;
+    ticket.stellarTxHash = anchorResult.txHash;
+    ticket.stellarExplorerUrl = anchorResult.explorerUrl;
 
     // 7. Store participation record for Cultural Passport
     const participation: ParticipationRecord = {
@@ -203,23 +210,30 @@ class InMemoryTicketRepository implements ITicketRepository {
       eventTitle: ticket.eventTitle,
       attendeeName: ticket.attendeeName,
       verifiedAt: usedAt,
-      stellarTxHash: stellarAnchor.txHash,
-      stellarExplorerUrl: stellarAnchor.explorerUrl,
+      stellarStatus: anchorResult.status,
+      stellarTxHash: anchorResult.txHash,
+      stellarExplorerUrl: anchorResult.explorerUrl,
       badgeName: this.event.badgeName,
       badgePoints: this.event.badgePoints,
     };
 
     this.participations.set(ticket.id, participation);
 
+    const message =
+      anchorResult.status === 'CONFIRMED'
+        ? `¡Check-in exitoso! Bienvenido ${ticket.attendeeName}. Participación confirmada en Stellar Testnet.`
+        : `¡Acceso autorizado! Bienvenido ${ticket.attendeeName}. (Registro en Stellar Testnet temporalmente pendiente/no disponible).`;
+
     return {
-      success: true,
+      success: true, // Gate access granted
       statusCode: 'CHECK_IN_SUCCESSFUL',
-      message: `¡Check-in exitoso! Bienvenido ${ticket.attendeeName}. Participación anclada en Stellar Testnet.`,
+      message,
       ticket,
-      stellarTxHash: stellarAnchor.txHash,
-      stellarExplorerUrl: stellarAnchor.explorerUrl,
+      stellarStatus: anchorResult.status,
+      stellarTxHash: anchorResult.txHash,
+      stellarExplorerUrl: anchorResult.explorerUrl,
       timestamp: usedAt,
-      verifiedBy: `CulturaGO Gate / Key ${getAuthorityPublicKey().slice(0, 8)}...`,
+      verifiedBy: `CulturaGO Gate / Key ${getTrustedAuthorityPublicKey().slice(0, 8)}...`,
     };
   }
 

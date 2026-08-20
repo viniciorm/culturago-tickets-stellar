@@ -57,7 +57,7 @@ Evento → Ticket Digital → QR Único → Check-in (Scan & Validate) → Ticke
 $$\text{IDEA} \longrightarrow \text{RAVEN} \longrightarrow \text{BUILD} \longrightarrow \text{STELLAR}$$
 
 Documentación del proyecto:
-* [Challenge Journey (IDEA $\to$ RAVEN $\to$ BUILD $\to$ STELLAR)](file:///docs/CHALLENGE.md)
-* [Raven Discovery Log](file:///docs/RAVEN_DISCOVERY.md)
-* [System Architecture & Security Model](file:///docs/ARCHITECTURE.md)
-* [Guión de Demo en 45 Segundos](file:///docs/DEMO.md)
+* [Challenge Journey (IDEA $\to$ RAVEN $\to$ BUILD $\to$ STELLAR)](docs/CHALLENGE.md)
+* [Raven Discovery Log](docs/RAVEN_DISCOVERY.md)
+* [System Architecture & Security Model](docs/ARCHITECTURE.md)
+* [Guión de Demo en 45 Segundos](docs/DEMO.md)
